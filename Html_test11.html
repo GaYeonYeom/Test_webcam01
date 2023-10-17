@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>웹캠 관절 감지</title>
+</head>
+<body>
+    <video id="webcam" autoplay></video>
+    <canvas id="output" width="640" height="480"></canvas>
+
+    <script>
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('output');
+        const ctx = canvas.getContext('2d');
+
+        async function setupCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({ 'audio': false, 'video': true });
+            video.srcObject = stream;
+
+            return new Promise((resolve) => {
+                video.onloadedmetadata = () => {
+                    resolve(video);
+                };
+            });
+        }
+
+        async function drawRectangles(keypoints) {
+            const leftShoulder = keypoints.find(keypoint => keypoint.part === 'leftShoulder');
+            const rightShoulder = keypoints.find(keypoint => keypoint.part === 'rightShoulder');
+            const leftKnee = keypoints.find(keypoint => keypoint.part === 'leftKnee');
+            const rightKnee = keypoints.find(keypoint => keypoint.part === 'rightKnee');
+
+            if (leftShoulder && rightShoulder && leftKnee && rightKnee) {
+                ctx.beginPath();
+                ctx.rect(leftShoulder.position.x, leftShoulder.position.y, rightShoulder.position.x - leftShoulder.position.x, rightKnee.position.y - leftShoulder.position.y);
+                ctx.strokeStyle = 'red';
+                ctx.stroke();
+            }
+        }
+
+        async function detectPose() {
+            const video = await setupCamera();
+            video.play();
+
+            const poseDetectionFrame = async () => {
+                const pose = await estimatePose();
+                drawRectangles(pose.keypoints);
+                requestAnimationFrame(poseDetectionFrame);
+            };
+
+            poseDetectionFrame();
+        }
+
+        async function estimatePose() {
+            return new Promise((resolve) => {
+                const pose = {
+                    keypoints: [
+                        { part: 'leftShoulder', position: { x: 100, y: 100 } },
+                        { part: 'rightShoulder', position: { x: 300, y: 100 } },
+                        { part: 'leftKnee', position: { x: 100, y: 300 } },
+                        { part: 'rightKnee', position: { x: 300, y: 300 } }
+                    ]
+                };
+                resolve(pose);
+            });
+        }
+
+        detectPose();
+    </script>
+</body>
+</html>
